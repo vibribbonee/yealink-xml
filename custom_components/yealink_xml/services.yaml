@@ -1,0 +1,47 @@
+push_notification:
+  name: Push notification
+  description: Show a message on a Yealink phone, optionally with a beep or ringtone.
+  fields:
+    phone:
+      name: Phone
+      description: Select the configured Yealink phone to notify.
+      required: true
+      selector:
+        config_entry:
+          integration: yealink_xml
+    message:
+      name: Message
+      description: The text to display on the phone.
+      required: true
+      selector:
+        text:
+          multiline: true
+    title:
+      name: Title
+      description: A short heading shown above the message.
+      default: Home Assistant
+      selector:
+        text:
+    beep:
+      name: Beep
+      description: Play a short notification tone when displaying the message.
+      default: true
+      selector:
+        boolean:
+    ring:
+      name: Play ringtone
+      description: Play Ring1.wav with the message. The phone must have a usable ringer volume.
+      default: false
+      selector:
+        boolean:
+    timeout:
+      name: Screen timeout
+      description: Seconds before the phone leaves the notification screen.
+      default: 15
+      selector:
+        number:
+          min: 5
+          max: 120
+          step: 1
+          unit_of_measurement: s
+          mode: box

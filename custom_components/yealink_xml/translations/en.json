@@ -1,0 +1,153 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect a Yealink phone",
+        "description": "Create one control menu for one phone. Add a separate profile for each room/phone. Enter the Home Assistant address your phone can reach, choose a short profile ID such as `bedroom`, and select/reorder the entities for that phone.\n\n**Phone URL format**\n\n`{phone_url}`\n\nIf the phone only has one URL field, the credentials-in-URL format looks like this (the angle-bracket values are placeholders):\n\n`{embedded_url_template}`\n\nAfter saving, Home Assistant will show a notification with the exact URL for your configuration and step-by-step phone setup instructions. Use the username/password from this form in the Yealink XML Browser authentication fields when available. The password is not stored in plain text. Home Assistant will suggest its configured internal URL or a discovered local address for the base URL when available; verify that your phone can reach it. Optional phone-control settings create buttons that send actions to the Yealink phone.",
+        "data": {
+          "profile_name": "Friendly name (for example, Bedroom phone)",
+          "profile_id": "Short URL name (for example, bedroom)",
+          "username": "Phone XML Browser username (1–15 characters)",
+          "password": "Phone XML Browser password (8–15 characters)",
+          "entities": "Choose what this phone can control; drag to set menu order",
+          "base_url": "Home Assistant address the phone can reach",
+          "tap_behavior": "What happens when you select an entity",
+          "after_action": "Where the phone goes after an action",
+          "show_controls_entry": "Also show a Controls entry for advanced actions",
+          "state_wait": "Maximum wait for the updated device state",
+          "phone_url": "Yealink phone web interface URL (optional)",
+          "phone_username": "Yealink phone web interface username",
+          "phone_password": "Yealink phone web interface password",
+          "phone_verify_ssl": "Verify the phone's HTTPS certificate",
+          "phone_actions": "Phone action buttons to create"
+        },
+        "data_description": {
+          "profile_name": "Only used as the menu title inside the phone.",
+          "profile_id": "Use lowercase letters, numbers, hyphens or underscores. This becomes part of the URL and cannot be changed later.",
+          "username": "Enter the same username in the Yealink XML Browser authentication settings. This is not your Home Assistant login.",
+          "password": "Create a separate phone password; do not use your Home Assistant account password. You will use this password on the phone too.",
+          "entities": "Only selected entities are exposed through this phone profile. Drag selected entities into the order you want them to appear.",
+          "base_url": "Home Assistant suggests its configured internal URL or a local address when available. Use an address reachable by the phone; Docker, VLAN, VPN, and multi-interface setups may need an override.",
+          "tap_behavior": "Recommended: Run default action on select. Selecting a light or switch toggles it. Use its Controls entry for brightness, volume, and other options.",
+          "after_action": "Recommended: Return to phone main menu. Choose Stay on entity controls if you make repeated adjustments.",
+          "show_controls_entry": "Recommended on. This keeps brightness, volume and other advanced controls available when selecting an entity already performs a one-tap action.",
+          "state_wait": "Recommended: 2 seconds. The menu returns sooner when Home Assistant reports the new state; increase this for slow cloud-connected devices.",
+          "phone_url": "For example: http://192.0.2.115. Leave blank to disable phone-control buttons. With HTTP, Basic Auth credentials are not encrypted on the network; use a trusted LAN or HTTPS with a valid certificate.",
+          "phone_username": "This is the phone web interface login, separate from the XML Browser credentials above.",
+          "phone_password": "This is the phone web interface password. Home Assistant stores it in the config entry so it can authenticate each request; the value is not displayed again.",
+          "phone_verify_ssl": "Leave enabled for trusted certificates. Disable only for an untrusted or factory certificate on a trusted local network; this skips HTTPS identity verification.",
+          "phone_actions": "DND on/off are selected by default. DND must be enabled on the phone (features.dnd.allow=1). Also allow requests from Home Assistant under Features > Remote Control > Action URI Allow IP List. Also configure Features > Remote Control > Push XML Server IP Address to receive pushed notifications."
+        }
+      }
+    },
+    "error": {
+      "invalid_profile_name": "Enter a profile name of 1–48 characters.",
+      "invalid_profile_id": "Use 1–32 lowercase letters/numbers, hyphens, or underscores; the first character must be a letter or number.",
+      "duplicate_profile": "That profile ID is already used by another Yealink phone profile.",
+      "invalid_username": "Username must be 1–15 characters and cannot contain a colon or control characters.",
+      "invalid_password": "Password must be 8–15 characters.",
+      "select_entities": "Select at least one entity. You can change the selection and order later.",
+      "invalid_base_url": "Enter the Home Assistant address reachable from the phone, for example http://192.0.2.50:8123, without a path or query.",
+      "invalid_tap_behavior": "Choose a valid tap behavior.",
+      "invalid_after_action": "Choose a valid after-action destination.",
+      "invalid_state_wait": "Choose one of the listed state-refresh wait times.",
+      "invalid_phone_url": "Enter the phone base URL as an HTTP or HTTPS origin, such as http://192.0.2.115, without a path or query.",
+      "phone_credentials_required": "Enter the phone URL, web interface username, and password to enable phone controls.",
+      "invalid_phone_username": "Enter a phone username of up to 64 characters without a colon or control characters.",
+      "invalid_phone_password": "Phone password must be at most 128 characters and cannot contain control characters.",
+      "invalid_phone_actions": "Select only the listed phone actions."
+    },
+    "abort": {
+      "already_configured": "That Yealink phone profile ID is already in use. Choose a different ID for each phone."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Phone URL and menu options",
+        "description": "You are editing this phone profile. Its URL uses the profile ID assigned when it was created.\n\n**Your current phone URL**\n\n`{phone_url}`\n\nIf the phone only has one URL field, the credentials-in-URL format looks like this (replace `<YOUR_PASSWORD>` with your own password):\n\n`{embedded_url_template}`\n\nHome Assistant also creates/updates a notification with setup steps whenever you save these settings. Paste the URL into the Yealink XML Browser and set the username/password in the phone's XML Browser authentication fields when available.\n\nSelect and reorder the entities for this phone below. Only selected entities are exposed. Leave both new credential fields blank to keep the existing login. Your password is stored as a salted hash and cannot be recovered from Home Assistant; enter the password you originally chose on the phone, or rotate both credentials here and update the phone too. Phone control uses a separate phone web-interface login. Clear the phone URL to disable its action buttons. The saved phone password is reused when its field is left blank.",
+        "data": {
+          "profile_name": "Friendly name shown in the phone menu",
+          "entities": "Choose what this phone can control; drag to set menu order",
+          "new_username": "New phone XML Browser username (optional)",
+          "new_password": "New phone XML Browser password (optional)",
+          "base_url": "Home Assistant address the phone can reach",
+          "tap_behavior": "What happens when you select an entity",
+          "after_action": "Where the phone goes after an action",
+          "show_controls_entry": "Also show a Controls entry for advanced actions",
+          "state_wait": "Maximum wait for the updated device state",
+          "phone_url": "Yealink phone web interface URL (optional)",
+          "phone_username": "Yealink phone web interface username",
+          "phone_password": "Yealink phone web interface password (leave blank to keep current)",
+          "phone_verify_ssl": "Verify the phone's HTTPS certificate",
+          "phone_actions": "Phone action buttons to create"
+        },
+        "data_description": {
+          "profile_name": "A friendly label for the menu; changing this does not change the phone URL.",
+          "entities": "Selected entities are the only ones this phone can view/control. Drag selected entities to reorder the menu.",
+          "new_username": "Enter a new username only if you also enter a new password. Update the phone's login at the same time.",
+          "new_password": "Leave blank with the username field to keep the current password. The existing password cannot be displayed later.",
+          "base_url": "The current saved address is retained. Home Assistant can suggest its configured internal URL or discovered local address when one is available.",
+          "tap_behavior": "Recommended: Run default action on select. A light or switch toggles from the main list; use its Controls entry for brightness or other adjustments.",
+          "after_action": "Recommended: Return to phone main menu for fast one-press control.",
+          "show_controls_entry": "Keep on to expose advanced actions alongside one-tap actions.",
+          "state_wait": "Wait ends early as soon as Home Assistant reports a state/attribute change. Use 2–3 seconds for slower devices.",
+          "phone_url": "For example: http://192.0.2.115. Clear this to remove the phone-control buttons. With HTTP, Basic Auth credentials are not encrypted on the network; use a trusted LAN or HTTPS with a valid certificate.",
+          "phone_username": "Separate from the XML Browser login. Changing this username requires entering its new password.",
+          "phone_password": "Leave blank to reuse the saved phone password. The password cannot be displayed later.",
+          "phone_verify_ssl": "Leave enabled for trusted certificates. Disable only for an untrusted or factory certificate on a trusted local network; this skips HTTPS identity verification.",
+          "phone_actions": "DND on/off are selected by default. DND must be enabled on the phone (features.dnd.allow=1), and the phone must allow Action URI requests from Home Assistant under Features > Remote Control > Action URI Allow IP List. Also configure Features > Remote Control > Push XML Server IP Address to receive pushed notifications."
+        }
+      }
+    },
+    "error": {
+      "invalid_profile_name": "Enter a profile name of 1–48 characters.",
+      "invalid_password": "Password must be 8–15 characters.",
+      "select_entities": "Select at least one entity.",
+      "credentials_together": "Enter both a new username and a new password, or leave both blank.",
+      "invalid_username": "Username must be 1–15 characters and cannot contain a colon or control characters.",
+      "invalid_base_url": "Enter the Home Assistant address reachable from the phone, for example http://192.0.2.50:8123, without a path or query.",
+      "invalid_tap_behavior": "Choose a valid tap behavior.",
+      "invalid_after_action": "Choose a valid after-action destination.",
+      "invalid_state_wait": "Choose one of the listed state-refresh wait times.",
+      "invalid_phone_url": "Enter the phone base URL as an HTTP or HTTPS origin, such as http://192.0.2.115, without a path or query.",
+      "phone_credentials_required": "Enter the phone URL, web interface username, and password to enable phone controls.",
+      "phone_password_required_for_username_change": "Enter the new phone password when changing the phone username.",
+      "invalid_phone_username": "Enter a phone username of up to 64 characters without a colon or control characters.",
+      "invalid_phone_password": "Phone password must be at most 128 characters and cannot contain control characters.",
+      "invalid_phone_actions": "Select only the listed phone actions."
+    }
+  },
+  "services": {
+    "push_notification": {
+      "name": "Push notification",
+      "description": "Show a message on a Yealink phone, optionally with a beep or ringtone. Configure the phone to trust Home Assistant as its Push XML server first.",
+      "fields": {
+        "phone": {
+          "name": "Phone",
+          "description": "Select the configured Yealink phone to notify."
+        },
+        "message": {
+          "name": "Message",
+          "description": "The text to display on the phone."
+        },
+        "title": {
+          "name": "Title",
+          "description": "A short heading shown above the message."
+        },
+        "beep": {
+          "name": "Beep",
+          "description": "Play a short notification tone when displaying the message."
+        },
+        "ring": {
+          "name": "Play ringtone",
+          "description": "Play Ring1.wav with the message; the phone must have a usable ringer volume."
+        },
+        "timeout": {
+          "name": "Screen timeout",
+          "description": "Seconds before the phone leaves the notification screen (5–120)."
+        }
+      }
+    }
+  }
+}

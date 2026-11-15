@@ -8,15 +8,17 @@ Use a compatible Yealink desk phone as a physical remote for Home Assistant.
 
 ## Features
 
-- Open a menu for selected devices from the phone’s XML browser.
-- Control lights and switches or run scenes and scripts from the handset.
-- Choose which entities the phone can see during setup.
+- **Control Home Assistant from the phone.** Open an XML menu to control lights and switches or run scenes and scripts.
+- **Choose what each phone sees.** Select and order its menu entries and protect the menu with its own login.
+- **Send phone notifications.** Push a message to the screen with an optional beep or ringtone.
 
 Tested with the Yealink T42U.
 
 ## Install
 
-Install from Home Assistant Marketplace and restart Home Assistant. Then go to **Settings → Devices & services → Add integration → Yealink XML Browser**. Choose the entities to expose and open the integration’s menu URL on the phone. Keep your existing entry when upgrading.
+Install from Home Assistant Marketplace and restart Home Assistant. Then go to **Settings → Devices & services → Add integration → Yealink XML Browser**. Choose the entities to expose, then use the setup notification to configure the phone’s XML Browser.
+
+[Phone notification action](custom_components/yealink_xml/services.yaml)
 
 ## Contributing
 

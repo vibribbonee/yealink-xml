@@ -348,7 +348,7 @@ class YealinkXmlConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_PROFILE_ID: profile_id,
                         CONF_USERNAME: username,
                         CONF_PASSWORD_SALT: salt,
-                        CONF_PASSWORD_HASH: _password_hash(password, salt),
+                        CONF_PASSWORD_HASH: await self.hass.async_add_executor_job(_password_hash, password, salt),
                     },
                     options=options,
                 )
@@ -497,7 +497,7 @@ class YealinkXmlOptionsFlow(config_entries.OptionsFlow):
                         {
                             CONF_USERNAME: new_username,
                             CONF_PASSWORD_SALT: salt,
-                            CONF_PASSWORD_HASH: _password_hash(new_password, salt),
+                            CONF_PASSWORD_HASH: await self.hass.async_add_executor_job(_password_hash, new_password, salt),
                         }
                     )
                     self.hass.config_entries.async_update_entry(

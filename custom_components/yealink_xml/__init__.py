@@ -8,6 +8,8 @@ import binascii
 import hashlib
 import hmac
 import logging
+import time
+from collections import OrderedDict
 from typing import Any
 from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 import xml.etree.ElementTree as ET
@@ -28,9 +30,7 @@ from .const import (
     CONF_SHOW_CONTROLS_ENTRY,
     CONF_STATE_WAIT,
     TAP_BEHAVIOR_MENU,
-    TAP_BEHAVIOR_DEFAULT,
     TAP_BEHAVIOR_TOGGLE,
-    AFTER_ACTION_MENU,
     AFTER_ACTION_ENTITY,
     DEFAULT_TAP_BEHAVIOR,
     DEFAULT_AFTER_ACTION,
@@ -77,30 +77,78 @@ async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
     await hass.config_entries.async_reload(entry.entry_id)
 
 
-def _verify_basic_auth(request: web.Request, entry: ConfigEntry) -> bool:
-    """Verify the Yealink's HTTP Basic credentials without storing plaintext password."""
+# Signed menu links stay valid this long. Menus are re-signed on every
+# response, so only a page left on screen for longer needs reopening.
+SIGNED_LINK_LIFETIME = 24 * 60 * 60
+# Remember recently verified phone credentials so each menu tap does not repeat
+# the deliberately slow password hash. Keys are digests, never the password.
+_VERIFIED_CREDENTIALS: OrderedDict[bytes, float] = OrderedDict()
+_VERIFIED_CREDENTIAL_SECONDS = 10 * 60
+_MAX_VERIFIED_CREDENTIALS = 32
+
+
+def _basic_credentials(request: web.Request) -> tuple[str, str] | None:
+    """Return the request's Basic Auth username and password, if well-formed."""
     authorization = request.headers.get("Authorization", "")
     scheme, separator, encoded = authorization.partition(" ")
     if not separator or scheme.lower() != "basic" or not encoded:
-        return False
+        return None
     try:
         decoded = base64.b64decode(encoded, validate=True).decode("utf-8")
-        username, separator, password = decoded.partition(":")
     except (binascii.Error, UnicodeDecodeError, ValueError):
-        return False
+        return None
+    username, separator, password = decoded.partition(":")
     if not separator:
-        return False
-    data = entry.data
-    if not hmac.compare_digest(username, str(data.get(CONF_USERNAME, ""))):
-        return False
+        return None
+    return username, password
+
+
+def _password_matches(entry_data: dict[str, Any], password: str) -> bool:
+    """Compare a password with the stored PBKDF2 hash. Slow by design."""
     try:
-        salt = bytes.fromhex(str(data[CONF_PASSWORD_SALT]))
+        salt = bytes.fromhex(str(entry_data[CONF_PASSWORD_SALT]))
     except (KeyError, ValueError):
         return False
     actual_hash = hashlib.pbkdf2_hmac(
         "sha256", password.encode("utf-8"), salt, 150_000
     ).hex()
-    return hmac.compare_digest(actual_hash, str(data.get(CONF_PASSWORD_HASH, "")))
+    return hmac.compare_digest(actual_hash, str(entry_data.get(CONF_PASSWORD_HASH, "")))
+
+
+def _credential_key(entry: ConfigEntry, username: str, password: str) -> bytes:
+    """Bind a cache entry to these credentials and the entry's current hash."""
+    return hashlib.sha256(
+        b"\0".join((
+            entry.entry_id.encode(),
+            str(entry.data.get(CONF_PASSWORD_HASH, "")).encode(),
+            username.encode("utf-8"),
+            password.encode("utf-8"),
+        ))
+    ).digest()
+
+
+async def _async_verify_basic_auth(
+    hass: HomeAssistant, request: web.Request, entry: ConfigEntry
+) -> bool:
+    """Verify the phone's Basic Auth without blocking Home Assistant's event loop."""
+    credentials = _basic_credentials(request)
+    if credentials is None:
+        return False
+    username, password = credentials
+    if not hmac.compare_digest(username, str(entry.data.get(CONF_USERNAME, ""))):
+        return False
+    key = _credential_key(entry, username, password)
+    now = time.monotonic()
+    verified_at = _VERIFIED_CREDENTIALS.get(key)
+    if verified_at is not None and now - verified_at < _VERIFIED_CREDENTIAL_SECONDS:
+        return True
+    if not await hass.async_add_executor_job(_password_matches, dict(entry.data), password):
+        return False
+    _VERIFIED_CREDENTIALS[key] = now
+    _VERIFIED_CREDENTIALS.move_to_end(key)
+    while len(_VERIFIED_CREDENTIALS) > _MAX_VERIFIED_CREDENTIALS:
+        _VERIFIED_CREDENTIALS.popitem(last=False)
+    return True
 
 
 def _link_signing_key(entry: ConfigEntry) -> bytes:
@@ -132,7 +180,12 @@ def _signature(entry: ConfigEntry, path: str, params: list[tuple[str, str]]) -> 
 def _signed_url(url: str, entry: ConfigEntry) -> str:
     """Append an HMAC signature to a same-server XML navigation URL."""
     parts = urlsplit(url)
-    params = [(key, value) for key, value in parse_qsl(parts.query, keep_blank_values=True) if key != "sig"]
+    params = [
+        (key, value)
+        for key, value in parse_qsl(parts.query, keep_blank_values=True)
+        if key not in ("sig", "exp")
+    ]
+    params.append(("exp", str(int(time.time()) + SIGNED_LINK_LIFETIME)))
     params.append(("sig", _signature(entry, parts.path, params)))
     return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(params), parts.fragment))
 
@@ -162,6 +215,14 @@ def _verify_signed_request(request: web.Request, entry: ConfigEntry) -> bool:
     """Verify an HMAC-authenticated link when the phone omits Basic Auth."""
     supplied = request.query.get("sig", "")
     if len(supplied) != 64:
+        return False
+    try:
+        expires = int(request.query.get("exp", ""))
+    except ValueError:
+        # Links from older releases had no expiry; the phone reopens the menu
+        # with Basic Auth, which issues fresh, expiring links.
+        return False
+    if expires < time.time():
         return False
     # Use the URL's decoded query parameters, canonicalized in the same way as
     # _signed_url. Duplicate parameters are included rather than silently lost.
@@ -844,7 +905,6 @@ def _render_entity(
     if state is None:
         return _xml_menu("Entity unavailable", [("Return to menu", _url(base_url, view="menu", page=menu_page))], base_url=base_url, previous=_url(base_url, view="menu", page=menu_page))
 
-    domain = entity_id.split(".", 1)[0]
     actions = _available_actions(state)
     # Potentially long option lists must be paginated instead of being allowed
     # to crowd important controls off the T42S screen.
@@ -944,7 +1004,11 @@ class YealinkXmlView(HomeAssistantView):
         # firmware does not re-send that header on each MenuItem URI, so links
         # emitted by this integration also carry an HMAC bound to the full
         # request path/query. This cannot be changed to another entity/action.
-        if not (_verify_basic_auth(request, entry) or _verify_signed_request(request, entry)):
+        # The signed-link check is cheap, so try it before the password hash.
+        if not (
+            _verify_signed_request(request, entry)
+            or await _async_verify_basic_auth(hass, request, entry)
+        ):
             return web.Response(
                 status=401,
                 text="XML Browser authentication required",

@@ -1,3 +1,4 @@
 {
-  "name": "Yealink XML Browser"
+  "name": "Yealink XML Browser",
+  "homeassistant": "2024.12.0"
 }

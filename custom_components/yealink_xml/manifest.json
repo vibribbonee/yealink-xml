@@ -5,10 +5,12 @@
     "@vibribbonee"
   ],
   "config_flow": true,
-  "dependencies": ["http"],
+  "dependencies": [
+    "http"
+  ],
   "documentation": "https://github.com/vibribbonee/yealink-xml#readme",
   "integration_type": "service",
   "iot_class": "local_polling",
-  "version": "0.4.2",
-  "issue_tracker": "https://github.com/vibribbonee/yealink-xml/issues"
+  "issue_tracker": "https://github.com/vibribbonee/yealink-xml/issues",
+  "version": "0.4.2"
 }
